@@ -1,0 +1,41 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+
+# Server logs and outputs
+server.err
+server.out
+db_output.json
+schema_dump.txt
+tmp_unused.txt
+
+# User uploads
+uploads/
+
+# Generated docs
+# doc_content.html
+# doc_content_utf8.html
