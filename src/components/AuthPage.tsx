@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Ticket as TicketIcon, User as UserIcon, Lock, Mail, ArrowRight, Loader2, Sun, Moon, ArrowLeft } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { api } from '../services/api';
-import logoImg from '../src/assets/logo.png';
+import logoImg from '../assets/logo.png';
 
 interface AuthPageProps {
   onLogin: (user: User) => void;

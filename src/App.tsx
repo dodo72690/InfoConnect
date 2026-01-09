@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   History // Ícone para histórico
 } from 'lucide-react'; // Biblioteca de ícones
-import logoImg from './src/assets/logo.png'; // Logótipo da aplicação
+import logoImg from './assets/logo.png'; // Logótipo da aplicação
 import Dashboard from './components/Dashboard'; // Painel principal (Admin/Técnico)
 import TicketDetail from './components/TicketDetail'; // Detalhes de um pedido (Chat)
 import AuthPage from './components/AuthPage'; // Página de Login/Registo

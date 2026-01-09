@@ -3,7 +3,7 @@ import {
   Ticket, Shield, Zap, BarChart3, Users, ArrowRight,
   Server, CheckCircle, Sun, Moon, Laptop, MessageSquare
 } from 'lucide-react';
-import logoImg from '../src/assets/logo.png';
+import logoImg from '../assets/logo.png';
 // import logoNomeImg from '../src/assets/logonome.png';
 
 interface LandingPageProps {
