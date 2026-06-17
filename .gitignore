@@ -30,6 +30,14 @@ dist-ssr
 server.err
 server.out
 db_output.json
+
+# Environment variables
+.env
+
+# Server logs and outputs
+server.err
+server.out
+db_output.json
 schema_dump.txt
 tmp_unused.txt
 
@@ -39,3 +47,7 @@ uploads/
 # Generated docs
 # doc_content.html
 # doc_content_utf8.html
+
+# Word documents / Academic drafts
+*.docx
+Trabalho PAP.docx
