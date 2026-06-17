@@ -35,7 +35,8 @@ export interface Message {
 export enum BudgetStatus {
   PENDING = 'Pendente',
   APPROVED = 'Aprovado',
-  REJECTED = 'Recusado'
+  REJECTED = 'Recusado',
+  COUNTER_PROPOSAL = 'Contraproposta'
 }
 
 export interface Budget {
@@ -44,6 +45,8 @@ export interface Budget {
   value: number;
   status: BudgetStatus;
   createdAt: Date; // data_envio
+  counterValue?: number;
+  counterReason?: string;
 }
 
 export interface Ticket {
@@ -59,6 +62,8 @@ export interface Ticket {
   attachment?: string | null; // anexo (VARCHAR 255 - Single file)
   messages: Message[];
   budget?: Budget;
+  ratingStars?: number | null;
+  ratingComment?: string | null;
 }
 
 export interface FAQ {

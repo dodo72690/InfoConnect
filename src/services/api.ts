@@ -1,13 +1,31 @@
 import { User, Ticket, Message, TicketStatus, BudgetStatus } from '../types';
 
 // URL base do nosso servidor Backend (Node.js)
-const API_URL = 'http://localhost:3000/api';
+// URL base do nosso servidor Backend (Node.js)
+// Em produção ou Dev (via Proxy), usamos caminho relativo '/api'
+const API_URL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Objeto centralizado para todas as chamadas à API.
  * Responsável por fazer o 'fetch' dos dados do servidor e tratar as respostas.
  */
 export const api = {
+  /**
+   * Verifica o email com o código recebido.
+   */
+  async verifyEmail(email: string, code: string) {
+    const res = await fetch(`${API_URL}/auth/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, code }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.erro || 'Erro ao verificar email');
+    }
+    return res.json();
+  },
+
   /**
    * Autentica o utilizador enviando email e senha.
    * Retorna os dados do utilizador se as credenciais estiverem corretas.
@@ -174,15 +192,18 @@ export const api = {
   /**
    * Regista um novo utilizador (Cliente).
    */
-  async register(name: string, email: string, password: string): Promise<User> {
+  async register(name: string, email: string, password: string): Promise<any> {
     const res = await fetch(`${API_URL}/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, email, password }),
     });
+
     if (!res.ok) {
       const err = await res.json();
-      throw new Error(err.erro || 'Erro ao registar');
+      // Show detailed error if available (e.g. from SQL)
+      const errorMessage = err.erro || err.sqlMessage || err.code || 'Erro ao registar';
+      throw new Error(errorMessage);
     }
     return res.json();
   },
@@ -220,11 +241,20 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.erro || 'Erro ao solicitar recuperação');
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Invalid JSON response:", text);
+      throw new Error("Erro de comunicação com o servidor.");
     }
-    return res.json();
+
+    if (!res.ok) {
+      throw new Error(data.erro || 'Erro ao solicitar recuperação');
+    }
+    return data;
   },
 
   async resetPassword(email: string, token: string, newPassword: string) {
@@ -233,11 +263,20 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, token, newPassword }),
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.erro || 'Erro ao redefinir senha');
+
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      console.error("Invalid JSON response (reset):", text);
+      throw new Error("Erro de comunicação com o servidor.");
     }
-    return res.json();
+
+    if (!res.ok) {
+      throw new Error(data.erro || 'Erro ao redefinir senha');
+    }
+    return data;
   },
 
   /**
@@ -259,12 +298,19 @@ export const api = {
     return res.json();
   },
 
-  async deleteFaq(id: string) {
-    const res = await fetch(`${API_URL}/faqs/${id}`, {
-      method: 'DELETE',
-    });
+  async deleteFaq(id: string): Promise<void> {
+    const res = await fetch(`${API_URL}/faqs/${id}`, { method: 'DELETE' });
     if (!res.ok) throw new Error('Erro ao apagar FAQ');
-    return res.json();
+  },
+
+  async suggestFaq(suggestion: string, userName?: string, userEmail?: string): Promise<void> {
+    // Note: This endpoint might need to be created in server.cjs if it doesn't exist
+    const res = await fetch(`${API_URL}/faqs/suggest`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suggestion, userName, userEmail })
+    });
+    if (!res.ok) throw new Error('Erro ao enviar sugestão');
   },
 
   /**
@@ -299,6 +345,19 @@ export const api = {
       body: JSON.stringify({ name }),
     });
     if (!res.ok) throw new Error('Erro ao adicionar categoria');
+    return res.json();
+  },
+
+  /**
+   * Atualiza o perfil do utilizador (Nome, Email, Telemovel)
+   */
+  async updateProfile(id: string, data: { name: string, email: string, phone: string }) {
+    const res = await fetch(`${API_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Erro ao atualizar perfil');
     return res.json();
   },
 
@@ -371,6 +430,100 @@ export const api = {
     });
     // Não lançamos erro aqui para não bloquear a UI caso o log falhe
     if (!res.ok) console.error('Erro ao salvar log');
+    return res.json();
+  },
+
+  // --- NOTIFICAÇÕES ---
+  async getNotifications(userId: string): Promise<any[]> {
+    const res = await fetch(`${API_URL}/users/${userId}/notifications`);
+    if (!res.ok) throw new Error('Erro ao buscar notificações');
+    return res.json();
+  },
+
+  async markNotificationAsRead(notificationId: string): Promise<any> {
+    const res = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+      method: 'PATCH'
+    });
+    if (!res.ok) throw new Error('Erro ao marcar notificação como lida');
+    return res.json();
+  },
+
+  async markAllNotificationsAsRead(userId: string): Promise<any> {
+    const res = await fetch(`${API_URL}/users/${userId}/notifications/read-all`, {
+      method: 'PATCH'
+    });
+    if (!res.ok) throw new Error('Erro ao limpar notificações');
+    return res.json();
+  },
+
+  // --- LOGS POR UTILIZADOR ---
+  async getUserLogs(userId: string): Promise<any[]> {
+    const res = await fetch(`${API_URL}/users/${userId}/logs`);
+    if (!res.ok) throw new Error('Erro ao buscar histórico de atividades');
+    const logs = await res.json();
+    return logs.map((log: any) => ({
+      ...log,
+      timestamp: new Date(log.timestamp)
+    }));
+  },
+
+  // --- AVALIAÇÃO DE TICKETS ---
+  async rateTicket(ticketId: string, stars: number, comment: string): Promise<any> {
+    const res = await fetch(`${API_URL}/tickets/${ticketId}/rate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stars, comment })
+    });
+    if (!res.ok) throw new Error('Erro ao submeter avaliação');
+    return res.json();
+  },
+
+  // --- ALTERAÇÃO DE FOTO DE PERFIL / AVATAR ---
+  async updateAvatar(userId: string, avatarPathOrFile: string | File): Promise<any> {
+    if (avatarPathOrFile instanceof File) {
+      const formData = new FormData();
+      formData.append('avatar', avatarPathOrFile);
+      const res = await fetch(`${API_URL}/users/${userId}/avatar`, {
+        method: 'PATCH',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Erro ao carregar imagem de perfil');
+      return res.json();
+    } else {
+      const res = await fetch(`${API_URL}/users/${userId}/avatar`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatarName: avatarPathOrFile }),
+      });
+      if (!res.ok) throw new Error('Erro ao atualizar avatar predefinido');
+      return res.json();
+    }
+  },
+
+  // --- CONTRAPROPOSTAS DE ORÇAMENTO ---
+  async submitCounterProposal(ticketId: string, value: number, reason: string): Promise<any> {
+    const res = await fetch(`${API_URL}/tickets/${ticketId}/budget/counter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value, reason }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.erro || 'Erro ao enviar contraproposta');
+    }
+    return res.json();
+  },
+
+  async handleCounterProposal(ticketId: string, action: 'approve' | 'reject', userId: string): Promise<any> {
+    const res = await fetch(`${API_URL}/tickets/${ticketId}/budget/counter/action`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, userId }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.erro || 'Erro ao processar contraproposta');
+    }
     return res.json();
   }
 };
