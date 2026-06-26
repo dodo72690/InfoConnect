@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Ticket, Shield, Zap, BarChart3, Users, ArrowRight,
-  Server, CheckCircle, Laptop, MessageSquare
+  Server, CheckCircle, Laptop, MessageSquare, X, FileText, Mail
 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 // import logoNomeImg from '../src/assets/logonome.png';
@@ -11,6 +11,8 @@ interface LandingPageProps {
 }
 
 const PaginaInicial: React.FC<LandingPageProps> = ({ onNavigateToLogin }) => {
+  const [activeModal, setActiveModal] = useState<'termos' | 'privacidade' | 'contacto' | null>(null);
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors font-sans selection:bg-blue-500 selection:text-white">
 
@@ -121,13 +123,117 @@ const PaginaInicial: React.FC<LandingPageProps> = ({ onNavigateToLogin }) => {
             &copy; {new Date().getFullYear()} InfoConnect Plataforma Digital. Todos os direitos reservados.
           </div>
           <div className="flex gap-6 text-sm">
-            <button className="hover:text-white transition-colors">Termos</button>
-            <button className="hover:text-white transition-colors">Privacidade</button>
-            <button className="hover:text-white transition-colors">Contacto</button>
+            <button onClick={() => setActiveModal('termos')} className="hover:text-white transition-colors font-medium">Termos</button>
+            <button onClick={() => setActiveModal('privacidade')} className="hover:text-white transition-colors font-medium">Privacidade</button>
+            <button onClick={() => setActiveModal('contacto')} className="hover:text-white transition-colors font-medium">Contacto</button>
           </div>
         </div>
       </footer>
 
+      {/* Modais do Rodapé */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl border border-slate-200 dark:border-slate-700 transform scale-100 opacity-100 transition-all duration-300">
+            {/* Cabeçalho */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                {activeModal === 'termos' && <FileText className="text-blue-600 dark:text-blue-500 w-5 h-5" />}
+                {activeModal === 'privacidade' && <Shield className="text-emerald-600 dark:text-emerald-500 w-5 h-5" />}
+                {activeModal === 'contacto' && <Mail className="text-blue-600 dark:text-blue-500 w-5 h-5" />}
+                <h3 className="font-bold text-lg text-slate-900 dark:text-white">
+                  {activeModal === 'termos' && 'Termos de Serviço'}
+                  {activeModal === 'privacidade' && 'Política de Privacidade'}
+                  {activeModal === 'contacto' && 'Contacto & Informações'}
+                </h3>
+              </div>
+              <button 
+                onClick={() => setActiveModal(null)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Conteúdo */}
+            <div className="p-6 overflow-y-auto text-slate-600 dark:text-slate-300 text-sm leading-relaxed space-y-4">
+              {activeModal === 'termos' && (
+                <>
+                  <p className="font-medium text-slate-800 dark:text-white">1. Aceitação dos Termos</p>
+                  <p>Ao aceder e utilizar a plataforma InfoConnect, concorda em cumprir estes Termos de Serviço e todas as leis e regulamentos aplicáveis. Se não concordar com algum destes termos, está proibido de utilizar o sistema.</p>
+                  
+                  <p className="font-medium text-slate-800 dark:text-white">2. Uso do Serviço</p>
+                  <p>Esta plataforma destina-se a fins operacionais e didáticos de gestão de assistência técnica de equipamentos informáticos. É expressamente proibido o uso do sistema para atividades ilícitas, fraudulentas ou que ponham em risco a estabilidade do servidor.</p>
+                  
+                  <p className="font-medium text-slate-800 dark:text-white">3. Contas de Utilizador</p>
+                  <p>O utilizador é responsável por manter a confidencialidade das suas credenciais de acesso (e-mail e palavra-passe) e por todas as atividades que ocorram na sua conta. Em caso de suspeita de uso indevido, deve alterar a sua senha imediatamente.</p>
+                  
+                  <p className="font-medium text-slate-800 dark:text-white">4. Propriedade Intelectual</p>
+                  <p>Todo o design, código-fonte, marcas e logótipos associados ao InfoConnect são propriedade do autor, desenvolvidos no âmbito da Prova de Aptidão Profissional (PAP) da ETPC.</p>
+                </>
+              )}
+
+              {activeModal === 'privacidade' && (
+                <>
+                  <p className="font-medium text-slate-800 dark:text-white text-base">Conformidade com o RGPD</p>
+                  <p>No InfoConnect, levamos a sério a segurança dos seus dados pessoais. O nosso sistema está em total conformidade com as regras do Regulamento Geral sobre a Proteção de Dados (RGPD).</p>
+                  
+                  <p className="font-medium text-slate-800 dark:text-white">1. Que dados recolhemos?</p>
+                  <p>Recolhemos apenas os dados estritamente necessários para a prestação de assistência:</p>
+                  <ul className="list-disc pl-5 space-y-1">
+                    <li>Nome (para identificação nos pedidos e chat)</li>
+                    <li>E-mail (para credenciais de login e notificações automáticas)</li>
+                    <li>Telemóvel (opcional, para contacto técnico)</li>
+                    <li>Descrição de avarias e anexos fotográficos</li>
+                  </ul>
+
+                  <p className="font-medium text-slate-800 dark:text-white">2. Finalidade dos Dados</p>
+                  <p>Os dados pessoais são usados unicamente para gerir a reparação dos seus equipamentos, comunicar com o técnico encarregue através do chat e receber atualizações sobre o estado do serviço.</p>
+
+                  <p className="font-medium text-slate-800 dark:text-white">3. Direito ao Esquecimento (Eliminação Automática)</p>
+                  <p className="text-blue-600 dark:text-blue-400 font-medium">Tem o direito de apagar a sua conta a qualquer momento na área de definições. Quando o faz, a base de dados remove permanentemente o seu utilizador e todos os dados associados (pedidos, mensagens, logs e faturas) de forma instantânea em cascata (ON DELETE CASCADE).</p>
+                </>
+              )}
+
+              {activeModal === 'contacto' && (
+                <div className="space-y-4">
+                  <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-100 dark:border-slate-700">
+                    <p className="font-bold text-slate-800 dark:text-white text-base mb-1">InfoConnect - PAP</p>
+                    <p className="text-slate-500 dark:text-slate-400">Prova de Aptidão Profissional</p>
+                    <p className="text-slate-500 dark:text-slate-400">Curso: Técnico de Gestão e Programação de Sistemas Informáticos (TGPSI)</p>
+                    <p className="text-slate-500 dark:text-slate-400">Escola: ETPC - Escola Tecnológica Profissional de Cantanhede</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <p className="font-medium text-slate-800 dark:text-white">Contacto Direto do Autor:</p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Autor:</span> Douglas Ferreira
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">E-mail:</span>
+                      <a href="mailto:douglas.ferreira.anjos@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                        douglas.ferreira.anjos@gmail.com
+                      </a>
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <span className="font-medium">Suporte:</span> Cantanhede, Coimbra, Portugal
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-700 flex justify-end bg-slate-50 dark:bg-slate-900/20 rounded-b-2xl">
+              <button 
+                onClick={() => setActiveModal(null)}
+                className="px-4 py-2 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-medium rounded-lg text-sm transition-all"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
