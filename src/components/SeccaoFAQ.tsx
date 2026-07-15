@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronUp, MessageSquarePlus, HelpCircle, Search, Send, Sparkles, Bot, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquarePlus, HelpCircle, Search, Send, Sparkles, Bot, Trash2, Plus } from 'lucide-react';
 import { api } from '../services/api';
 import { getAIPrediagnosis } from '../services/geminiService';
 import { User, LogType } from '../types';

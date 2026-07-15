@@ -1,9 +1,8 @@
 import { User, Ticket, Message, TicketStatus, BudgetStatus } from '../types';
 
 // URL base do nosso servidor Backend (Node.js)
-// URL base do nosso servidor Backend (Node.js)
 // Em produção ou Dev (via Proxy), usamos caminho relativo '/api'
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+export const API_URL = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.port === '5173' ? `${window.location.protocol}//${window.location.hostname}:3000/api` : '/api');
 
 /**
  * Objeto centralizado para todas as chamadas à API.
@@ -106,11 +105,11 @@ export const api = {
    * Envia uma nova mensagem no chat do pedido.
    * Define quem enviou (Cliente ou Técnico) baseado no parâmetro senderType.
    */
-  async sendMessage(ticketId: string, senderType: 'Cliente' | 'Técnico', text: string) {
+  async sendMessage(ticketId: string, senderType: 'Cliente' | 'Técnico', text: string, userId?: string) {
     const res = await fetch(`${API_URL}/tickets/${ticketId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ senderType, text }),
+      body: JSON.stringify({ senderType, text, userId }),
     });
     if (!res.ok) throw new Error('Erro ao enviar mensagem');
     return res.json();
@@ -122,11 +121,11 @@ export const api = {
   /**
    * Atualiza o estado de um pedido (ex: de 'Em análise' para 'Concluído').
    */
-  async updateStatus(ticketId: string, status: TicketStatus) {
+  async updateStatus(ticketId: string, status: TicketStatus, userId?: string) {
     const res = await fetch(`${API_URL}/tickets/${ticketId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, userId }),
     });
     if (!res.ok) throw new Error('Erro ao atualizar estado');
     return res.json();
@@ -135,11 +134,11 @@ export const api = {
   /**
    * Cria ou atualiza um orçamento para um pedido.
    */
-  async createBudget(ticketId: string, value: number, description: string) {
+  async createBudget(ticketId: string, value: number, description: string, technicianId?: string) {
     const res = await fetch(`${API_URL}/tickets/${ticketId}/budget`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ value, description }),
+      body: JSON.stringify({ value, description, technicianId }),
     });
     if (!res.ok) throw new Error('Erro ao criar orçamento');
     return res.json();

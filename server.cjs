@@ -22,7 +22,7 @@ const db = mysql.createPool({
   database: process.env.DB_NAME || "bd_infoconnect",
   port: process.env.DB_PORT || 3306,
   // Importante: A Clever Cloud e outros serviços exigem SSL, mas aceitam certificados auto-assinados
-  ssl: process.env.DB_HOST !== 'localhost' ? { rejectUnauthorized: false } : undefined
+  ssl: (process.env.DB_HOST && process.env.DB_HOST !== 'localhost' && process.env.DB_HOST !== '127.0.0.1') ? { rejectUnauthorized: false } : undefined
 });
 
 // Testar ligação imediatamente ao iniciar
@@ -134,6 +134,19 @@ function runDbMigrations() {
         if (errUpd) console.error("Erro ao adicionar coluna 'contraproposta_motivo':", errUpd);
         else console.log("Coluna 'contraproposta_motivo' adicionada com sucesso.");
       });
+    }
+  });
+
+  // 5. Atualizar o tipo do enum 'estado_orcamento' em 'orcamentos' para incluir 'Contraproposta'
+  const alterBudgetEnumQuery = `
+    ALTER TABLE orcamentos 
+    MODIFY COLUMN estado_orcamento ENUM('Pendente', 'Aprovado', 'Recusado', 'Contraproposta') NOT NULL DEFAULT 'Pendente'
+  `;
+  db.query(alterBudgetEnumQuery, (err) => {
+    if (err) {
+      console.error("Erro ao atualizar enum 'estado_orcamento' na tabela orcamentos:", err);
+    } else {
+      console.log("Tabela 'orcamentos': tipo de coluna 'estado_orcamento' atualizado (incluindo 'Contraproposta').");
     }
   });
 
@@ -670,15 +683,29 @@ app.get("/api/tickets/:id/messages", (req, res) => {
   });
 });
 
-// 5. Enviar Mensagem
 app.post("/api/tickets/:id/messages", (req, res) => {
   const ticketId = req.params.id;
-  const { senderType, text } = req.body;
+  const { senderType, text, userId } = req.body;
   // Forçar tipo = 'publico'
   const sql = "INSERT INTO mensagens (id_pedido, remetente, mensagem, data_envio, tipo) VALUES (?, ?, ?, NOW(), 'publico')";
 
   db.query(sql, [ticketId, senderType, text], (err, result) => {
     if (err) return res.status(500).json(err);
+
+    // Se o remetente for técnico e tiver userId, e o pedido não tiver técnico associado, atribui
+    if ((senderType === 'Technician' || senderType === 'Técnico') && userId) {
+      db.query("SELECT id_tecnico FROM pedidos WHERE id_pedido = ?", [ticketId], (errP, resP) => {
+        if (!errP && resP.length > 0 && resP[0].id_tecnico === null) {
+          db.query("SELECT id_tecnico FROM tecnicos WHERE id_tecnico = ?", [userId], (errT, resT) => {
+            if (!errT && resT.length > 0) {
+              db.query("UPDATE pedidos SET id_tecnico = ? WHERE id_pedido = ?", [userId, ticketId], (errUpd) => {
+                if (errUpd) console.error("Erro ao associar técnico ao pedido via mensagem:", errUpd);
+              });
+            }
+          });
+        }
+      });
+    }
 
     // Enviar notificação por email
     // Obter dados do pedido e cliente para enviar email
@@ -729,40 +756,83 @@ app.post("/api/tickets/:id/messages", (req, res) => {
 // 6. Atualizar Estado - Modifica o status (ex: 'Em análise' -> 'Concluído')
 app.patch("/api/tickets/:id/status", (req, res) => {
   const ticketId = req.params.id;
-  const { status } = req.body;
+  const { status, userId } = req.body;
   const sql = "UPDATE pedidos SET estado_pedido = ? WHERE id_pedido = ?";
 
   db.query(sql, [status, ticketId], (err, result) => {
     if (err) return res.status(500).json(err);
 
-    // Notificar Cliente da mudança de estado
-    const queryClient = `
-      SELECT u.email, c.nome, p.id_cliente 
-      FROM pedidos p 
-      JOIN clientes c ON p.id_cliente = c.id_cliente 
-      JOIN utilizadores u ON c.id_cliente = u.id_utilizador 
-      WHERE p.id_pedido = ?
-    `;
-    db.query(queryClient, [ticketId], (errC, resC) => {
-      if (!errC && resC.length > 0) {
-        const client = resC[0];
-        sendEmail(client.email, `Atualização do Pedido #${ticketId}`, `O estado do seu pedido foi alterado para: ${status}`);
-        createNotification(client.id_cliente, `O estado do seu pedido #${ticketId} foi alterado para: ${status}`);
-      }
-    });
+    const checkAndNotify = () => {
+      // Notificar Cliente da mudança de estado
+      const queryClient = `
+        SELECT u.email, c.nome, p.id_cliente 
+        FROM pedidos p 
+        JOIN clientes c ON p.id_cliente = c.id_cliente 
+        JOIN utilizadores u ON c.id_cliente = u.id_utilizador 
+        WHERE p.id_pedido = ?
+      `;
+      db.query(queryClient, [ticketId], (errC, resC) => {
+        if (!errC && resC.length > 0) {
+          const client = resC[0];
+          sendEmail(client.email, `Atualização do Pedido #${ticketId}`, `O estado do seu pedido foi alterado para: ${status}`);
+          createNotification(client.id_cliente, `O estado do seu pedido #${ticketId} foi alterado para: ${status}`);
+        }
+      });
+      res.json({ success: true });
+    };
 
-    res.json({ success: true });
+    // Se tiver userId e o pedido não tiver técnico associado, tenta associar
+    if (userId) {
+      db.query("SELECT id_tecnico FROM pedidos WHERE id_pedido = ?", [ticketId], (errP, resP) => {
+        if (!errP && resP.length > 0 && resP[0].id_tecnico === null) {
+          db.query("SELECT id_tecnico FROM tecnicos WHERE id_tecnico = ?", [userId], (errT, resT) => {
+            if (!errT && resT.length > 0) {
+              db.query("UPDATE pedidos SET id_tecnico = ? WHERE id_pedido = ?", [userId, ticketId], (errUpd) => {
+                if (errUpd) console.error("Erro ao associar técnico ao pedido via status:", errUpd);
+                checkAndNotify();
+              });
+            } else {
+              checkAndNotify();
+            }
+          });
+        } else {
+          checkAndNotify();
+        }
+      });
+    } else {
+      checkAndNotify();
+    }
   });
 });
 
 // 7. Orçamento - Cria ou atualiza o orçamento um ticket
 app.post("/api/tickets/:id/budget", (req, res) => {
   const ticketId = req.params.id;
-  const { value, description } = req.body;
+  const { value, description, technicianId } = req.body;
+  console.log(`[Server Budget] Received request for ticket ${ticketId}:`, { value, description, technicianId });
 
   const checkSql = "SELECT * FROM orcamentos WHERE id_pedido = ?";
   db.query(checkSql, [ticketId], (err, results) => {
-    if (err) return res.status(500).json(err);
+    if (err) {
+      console.error("[Server Budget] checkSql error:", err);
+      return res.status(500).json(err);
+    }
+
+    const updateTech = () => {
+      if (technicianId) {
+        // Verificar se o ID realmente pertence a um técnico (chave estrangeira na tabela 'tecnicos')
+        db.query("SELECT id_tecnico FROM tecnicos WHERE id_tecnico = ?", [technicianId], (errT, resT) => {
+          if (!errT && resT && resT.length > 0) {
+            console.log(`[Server Budget] Assigning technician ${technicianId} to ticket ${ticketId}`);
+            db.query("UPDATE pedidos SET id_tecnico = ? WHERE id_pedido = ?", [technicianId, ticketId], (errUpdTech) => {
+              if (errUpdTech) console.error("Erro ao atribuir técnico ao pedido:", errUpdTech);
+            });
+          } else {
+            console.log(`[Server Budget] Technician ${technicianId} not found in 'tecnicos' table or error occurred. Skipping assignment.`);
+          }
+        });
+      }
+    };
 
     const notifyClient = () => {
       const q = "SELECT id_cliente FROM pedidos WHERE id_pedido = ?";
@@ -775,21 +845,35 @@ app.post("/api/tickets/:id/budget", (req, res) => {
 
     if (results.length > 0) {
       const currentStatus = results[0].estado_orcamento;
+      console.log(`[Server Budget] Existing budget found. Current status: ${currentStatus}`);
       if (currentStatus === 'Pendente' || currentStatus === 'Contraproposta' || currentStatus === 'Aprovado') {
+        console.log(`[Server Budget] Rejecting request because active budget exists with status: ${currentStatus}`);
         return res.status(400).json({ erro: "Já existe um orçamento ativo para este pedido." });
       }
 
       const updateSql = "UPDATE orcamentos SET valor = ?, descricao_servico = ?, estado_orcamento = 'Pendente', contraproposta_valor = NULL, contraproposta_motivo = NULL, data_envio = NOW() WHERE id_pedido = ?";
+      console.log(`[Server Budget] Running update query for ticket ${ticketId}`);
       db.query(updateSql, [value, description, ticketId], (errUpd, resultUpd) => {
-        if (errUpd) return res.status(500).json(errUpd);
+        if (errUpd) {
+          console.error("[Server Budget] updateSql error:", errUpd);
+          return res.status(500).json(errUpd);
+        }
+        updateTech();
         notifyClient();
+        console.log(`[Server Budget] Budget updated successfully for ticket ${ticketId}`);
         res.json({ success: true, message: "Orçamento atualizado" });
       });
     } else {
       const insertSql = "INSERT INTO orcamentos (id_pedido, valor, descricao_servico, estado_orcamento, data_envio) VALUES (?, ?, ?, 'Pendente', NOW())";
+      console.log(`[Server Budget] Running insert query for ticket ${ticketId}`);
       db.query(insertSql, [ticketId, value, description], (errIns, resultIns) => {
-        if (errIns) return res.status(500).json(errIns);
+        if (errIns) {
+          console.error("[Server Budget] insertSql error:", errIns);
+          return res.status(500).json(errIns);
+        }
+        updateTech();
         notifyClient();
+        console.log(`[Server Budget] Budget inserted successfully for ticket ${ticketId}`);
         res.json({
           success: true,
           id: String(resultIns.insertId),
@@ -1633,7 +1717,7 @@ app.get("/api/users/:id/notifications", (req, res) => {
       id: row.id_notificacao,
       userId: row.id_utilizador,
       message: row.mensagem,
-      read: row.lida === 1,
+      read: !!row.lida,
       createdAt: row.data_criacao
     })));
   });

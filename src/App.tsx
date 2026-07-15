@@ -31,14 +31,13 @@ import GestaoUtilizadores from './components/GestaoUtilizadores'; // Gestão de 
 import PainelRelatorios from './components/PainelRelatorios'; // Relatórios e Estatísticas
 import LogsSistema from './components/LogsSistema'; // Logs do Sistema (Admin)
 import DefinicoesNotificacao from './components/DefinicoesNotificacao'; // Componente de definições de notificação
-import { Ticket, UserRole, TicketStatus, User, SystemLog, LogType, Message } from './types'; // Tipos TypeScript partilhados
-import { api } from './services/api'; // Serviço de comunicação com o Backend (API)
+import { Ticket, UserRole, TicketStatus, User, SystemLog, LogType, Message, BudgetStatus } from './types'; // Tipos TypeScript partilhados
+import { api, API_URL } from './services/api'; // Serviço de comunicação com o Backend (API)
 
 const getAvatarUrl = (url?: string) => {
   if (!url) return `https://api.dicebear.com/7.x/avataaars/svg?seed=default`;
   if (url.startsWith('/uploads')) {
-    const backendUrl = import.meta.env.VITE_API_URL || '';
-    const base = backendUrl.replace('/api', '');
+    const base = API_URL.replace('/api', '');
     return `${base}${url}`;
   }
   return url;
@@ -330,11 +329,13 @@ function App() {
     setTickets(prev => prev.map(t => t.id === updatedTicket.id ? updatedTicket : t));
 
     const oldTicket = tickets.find(t => t.id === updatedTicket.id);
+    console.log("[Debug Budget] updatedTicket:", updatedTicket);
+    console.log("[Debug Budget] oldTicket:", oldTicket);
 
     try {
       // 2. Se o estado mudou, chama a API para atualizar estado
       if (oldTicket && oldTicket.status !== updatedTicket.status) {
-        await api.updateStatus(updatedTicket.id, updatedTicket.status);
+        await api.updateStatus(updatedTicket.id, updatedTicket.status, currentUser?.id);
         addLog('Alteração de Estado', `Pedido ${updatedTicket.id} estado alterado para ${updatedTicket.status}`, LogType.INTERVENTION);
       }
 
@@ -343,23 +344,33 @@ function App() {
         const newMsg = updatedTicket.messages[updatedTicket.messages.length - 1];
         // Ignora mensagens de sistema geradas localmente (ex: Orçamento Aprovado) pois o backend não as salva assim
         if (!newMsg.text.startsWith('[SISTEMA]')) {
-          await api.sendMessage(updatedTicket.id, newMsg.senderType, newMsg.text);
+          await api.sendMessage(updatedTicket.id, newMsg.senderType, newMsg.text, currentUser?.id);
         }
       }
 
       // 4. Lógica de Orçamento
       if (updatedTicket.budget) {
-        // Se não tinha orçamento antes, é uma criação
-        if (!oldTicket?.budget) {
-          await api.createBudget(updatedTicket.id, updatedTicket.budget.value, updatedTicket.budget.description || '');
-          addLog('Criação de Orçamento', `Orçamento criado para pedido ${updatedTicket.id}`, LogType.INTERVENTION);
+        const isNewBudget = !oldTicket?.budget;
+        const isResubmission = updatedTicket.budget.status === BudgetStatus.PENDING && oldTicket?.budget?.status === BudgetStatus.REJECTED;
+        console.log("[Debug Budget] Checking budget logic:", { isNewBudget, isResubmission });
+
+        if (isNewBudget || isResubmission) {
+          console.log("[Debug Budget] Calling api.createBudget...");
+          await api.createBudget(updatedTicket.id, updatedTicket.budget.value, updatedTicket.budget.description || '', currentUser?.id);
+          addLog('Criação de Orçamento', `Orçamento criado/atualizado para pedido ${updatedTicket.id}`, LogType.INTERVENTION);
         }
         // Se já tinha e o status mudou (Aprovação/Rejeição)
-        else if (oldTicket.budget.status !== updatedTicket.budget.status) {
+        else if (oldTicket?.budget && oldTicket.budget.status !== updatedTicket.budget.status) {
+          console.log("[Debug Budget] Calling api.updateBudgetStatus...");
           await api.updateBudgetStatus(updatedTicket.id, updatedTicket.budget.status);
           addLog('Atualização de Orçamento', `Orçamento ${updatedTicket.budget.status} para pedido ${updatedTicket.id}`, LogType.INTERVENTION);
+        } else {
+          console.log("[Debug Budget] No budget action taken.");
         }
       }
+
+      // Sincroniza o estado local com os dados gravados no servidor
+      fetchTickets(false);
     } catch (e) {
       console.error("Erro ao sincronizar update:", e);
       fetchTickets(); // Reverte para o estado do servidor em caso de erro

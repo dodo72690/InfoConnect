@@ -59,12 +59,23 @@ const DetalhesPedido: React.FC<TicketDetailProps> = ({ ticket, currentUser, onCl
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
 
-  // Inicializa o email "Para" quando abre o modal ou muda o ticket
+  // Inicializa o email "Para" e limpa/preenche campos de orçamento quando abre o modal ou muda o ticket
   useEffect(() => {
     if (ticket.clientEmail) {
       setEmailTo(ticket.clientEmail);
+    } else {
+      setEmailTo('');
     }
-  }, [ticket]);
+
+    if (ticket.budget) {
+      setBudgetAmount(String(ticket.budget.value));
+      setBudgetDesc(ticket.budget.description || '');
+    } else {
+      setBudgetAmount('');
+      setBudgetDesc('');
+    }
+    setShowCreateFormForRejected(false);
+  }, [ticket.id]);
 
   const handleSendEmail = async (e: React.FormEvent) => {
     e.preventDefault();

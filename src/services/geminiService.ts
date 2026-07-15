@@ -109,7 +109,7 @@ export const getAIPrediagnosis = async (description: string): Promise<string> =>
   try {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3.5-flash',
       contents: `Tu és um Assistente de Suporte Técnico Inteligente da InfoConnect (um sistema de gestão de suporte informático). O teu objetivo é fornecer um pré-diagnóstico amigável, técnico e útil para um cliente que descreveu o seguinte problema no seu equipamento:
 "${description}"
 Fornece:

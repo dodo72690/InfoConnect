@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Ticket as TicketIcon, User as UserIcon, Lock, Mail, ArrowRight, Loader2, ArrowLeft } from 'lucide-react';
+import { Ticket as TicketIcon, User as UserIcon, Lock, Mail, ArrowRight, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { api } from '../services/api';
 import logoImg from '../assets/logo.png';
@@ -26,6 +26,8 @@ const PaginaAutenticacao: React.FC<AuthPageProps> = ({ onLogin, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState('');
 
   // Handler para verificar o código
@@ -229,14 +231,21 @@ const PaginaAutenticacao: React.FC<AuthPageProps> = ({ onLogin, onBack }) => {
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-base sm:text-sm"
+                  className="block w-full pl-10 pr-10 py-2.5 sm:py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-base sm:text-sm"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                >
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                </button>
               </div>
             </div>
 
@@ -250,13 +259,20 @@ const PaginaAutenticacao: React.FC<AuthPageProps> = ({ onLogin, onBack }) => {
                   <input
                     id="confirm-password"
                     name="confirm-password"
-                    type="password"
+                    type={showConfirmPassword ? "text" : "password"}
                     required={!isLogin}
-                    className="block w-full pl-10 pr-3 py-2.5 sm:py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-base sm:text-sm"
+                    className="block w-full pl-10 pr-10 py-2.5 sm:py-2 border border-slate-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-slate-700 text-slate-900 dark:text-white text-base sm:text-sm"
                     placeholder="••••••••"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  >
+                    {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
             )}

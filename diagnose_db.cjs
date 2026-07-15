@@ -16,13 +16,21 @@ db.connect(err => {
         process.exit(1);
     }
 
-    db.query('DESCRIBE utilizadores', (err, res) => {
+    db.query('DESCRIBE orcamentos', (err, res) => {
         if (err) {
-            fs.writeFileSync("db_diagnosis.txt", "Query Error: " + JSON.stringify(err));
+            fs.writeFileSync("db_diagnosis.txt", "Query Error orcamentos: " + JSON.stringify(err));
         } else {
             const columns = res.map(c => `${c.Field} (${c.Type})`).join('\n');
-            fs.writeFileSync("db_diagnosis.txt", "Columns in utilizadores:\n" + columns);
+            fs.appendFileSync("db_diagnosis.txt", "\nColumns in orcamentos:\n" + columns);
         }
-        db.end();
+        db.query('DESCRIBE notificacoes', (err2, res2) => {
+            if (err2) {
+                fs.appendFileSync("db_diagnosis.txt", "\nQuery Error notificacoes: " + JSON.stringify(err2));
+            } else {
+                const columns2 = res2.map(c => `${c.Field} (${c.Type})`).join('\n');
+                fs.appendFileSync("db_diagnosis.txt", "\nColumns in notificacoes:\n" + columns2);
+            }
+            db.end();
+        });
     });
 });
